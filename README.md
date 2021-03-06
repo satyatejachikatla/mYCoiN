@@ -1,6 +1,6 @@
 # My Own Coin From Scratch
 
-### Env Setupup
+### Env Setup
 ```
 ./env.sh
 pip3 install -r requirements.txt
