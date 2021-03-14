@@ -1,0 +1,6 @@
+.vscode
+.vscode-working-dir
+__pycache__
+pip3-env
+vendor/downloads
+vendor/node*
