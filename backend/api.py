@@ -12,59 +12,63 @@ flask_app = Flask(__name__)
 
 class StateMachine():
     POOL_TIME = 1  # seconds
+    UPDATE_TIME = 10
 
     def __init__(self):
 
         self.LM = LedgerManager('LM')
         self.LM_lock = threading.Lock()
-
-        self.state_thread = threading.Thread()
-
+        self.updateThread = None
         self.app = flask_app
+
+        self.updateContinuous()
 
         @self.app.route('/api', methods=['GET'])
         def api():
             return {
-                'userId': 1,
                 'title': 'Flask React Application',
-                'compleated': False
             }
 
         @self.app.route('/receive_transactions', methods=['POST'])
         def receive_transactions():
-            self.data = request.data
-            self.queueWork(self.addData)
+            data = request.data
+            self.queueWork(self.addData, [data])
             return 'OK'
 
-        @ self.app.route('/show_ledger', methods=['GET'])
-        def show_ledger():
-            return jsonify([{'data': block.data, 'hash': block.hash} for block in self.LM.BC.chain])
+        @self.app.route('/show_data', methods=['GET'])
+        def show_data():
+            return jsonify({
+                'ledgerInfo': [{'data': block.data, 'hash': block.hash} for block in self.LM.BC.chain],
+                'pendingTransactions': [t.data for t in self.LM.pendingTransactions],
+                'pendingLedgers': [b.data for b in self.LM.pendingLedgers]
+            })
 
-        @ self.app.route('/update', methods=['GET'])
-        def update():
+    def update(self):
+        self.LM.generatePendingLedgers()
 
-            print(self.LM.pendingTransactions)
+        M = Miner('Teja')
+        minable_block = self.LM.getLastestLedgerToMine()
 
-            self.LM.generatePendingLedgers()
+        if minable_block:
+            mined_block = M.mine(minable_block)
+            M.setMinedBlock(mined_block)
+            self.LM.authenticateLedger(M)
+            return 'DONE'
+        return 'SKIPPED'
 
-            M = Miner('Teja')
-            minable_block = self.LM.getLastestLedgerToMine()
+    def updateContinuous(self):
+        self.update()
+        self.updateThread = self.queueWork(
+            self.updateContinuous, [], time=self.UPDATE_TIME)
 
-            if minable_block:
-                mined_block = M.mine(minable_block)
-                M.setMinedBlock(mined_block)
-                self.LM.authenticateLedger(M)
-                return 'DONE'
-            return 'SKIPPED'
-
-    def queueWork(self, work):
-        thread = threading.Timer(self.POOL_TIME, work, ())
+    def queueWork(self, work, args, workTime=self.POOL_TIME):
+        thread = threading.Timer(workTime, work, args=args)
         thread.start()
 
-    def addData(self):
+    def addData(self, data):
         with self.LM_lock:
-            data = json.loads(self.data)
-            print(data)
+            data = json.loads(data)
+            print('Transaction Incomming Data:', data)
             self.LM.addTransactionToQueue(
                 Transaction(data['From'], data['To'], data['Amt']))
         return 0
