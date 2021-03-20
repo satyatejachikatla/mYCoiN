@@ -46,22 +46,14 @@ class StateMachine():
     def update(self):
         self.LM.generatePendingLedgers()
 
-        M = Miner('Teja')
-        minable_block = self.LM.getLastestLedgerToMine()
-
-        if minable_block:
-            mined_block = M.mine(minable_block)
-            M.setMinedBlock(mined_block)
-            self.LM.authenticateLedger(M)
-            return 'DONE'
-        return 'SKIPPED'
-
     def updateContinuous(self):
         self.update()
         self.updateThread = self.queueWork(
-            self.updateContinuous, [], time=self.UPDATE_TIME)
+            self.updateContinuous, [], workTime=self.UPDATE_TIME)
 
-    def queueWork(self, work, args, workTime=self.POOL_TIME):
+    def queueWork(self, work, args, workTime=None):
+        if not workTime:
+            workTime = self.POOL_TIME
         thread = threading.Timer(workTime, work, args=args)
         thread.start()
 
