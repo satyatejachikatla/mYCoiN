@@ -50,6 +50,7 @@ def testBasicLedgering():
 
     assert(LM.authenticateLedger(M,mined_block))
 
+    print_json(Block.objects().to_json())
     print('Validity:',LM.isLedgerValid())
     print_json(LM.pendingTransactions[-1].to_json())
 

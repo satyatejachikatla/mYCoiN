@@ -6,9 +6,19 @@ import threading
 from LedgerPackage.LedgerManager import LedgerManager
 from LedgerPackage.Transaction import Transaction
 from BlockChainPackage.Miner import Miner
+from BlockChainPackage.Block import Block
+
+import DataBase
+
+# print('Cleaning Db ...')
+# DataBase.cleanDb()
+print('Init Db ...')
+DataBase.globalDbInit()
 
 flask_app = Flask(__name__)
 
+def mongo_to_obj(j):
+    return json.dumps(j.to_json())
 
 class Server():
     POOL_TIME = 1  # seconds
@@ -38,13 +48,21 @@ class Server():
         @self.app.route('/show_data', methods=['GET'])
         def show_data():
             return jsonify({
-                'ledgerInfo': [{'data': block.data, 'hash': block.hash} for block in self.LM.BC.chain],
-                'pendingTransactions': [t.data for t in self.LM.pendingTransactions],
-                'pendingLedgers': [b.data for b in self.LM.pendingLedgers]
+                'ledgerInfo': mongo_to_obj(Block.objects()),
+                'pendingTransactions': [mongo_to_obj(t) for t in self.LM.pendingTransactions],
+                'pendingLedgers': [mongo_to_obj(b) for b in self.LM.pendingLedgers]
             })
 
     def update(self):
         self.LM.generatePendingLedgers()
+        M = Miner('Teja')
+        minable_block = self.LM.getLastestLedgerToMine()
+
+        if minable_block:
+            print('Started Mining')
+            mined_block = M.mine(minable_block)
+            self.LM.authenticateLedger(M,mined_block)
+            print('Done Mining')
 
     def updateContinuous(self):
         self.update()
@@ -61,8 +79,11 @@ class Server():
         with self.LM_lock:
             data = json.loads(data)
             print('Transaction Incomming Data:', data)
-            self.LM.addTransactionToQueue(
-                Transaction(data['From'], data['To'], data['Amt']))
+            new_t = Transaction()
+            new_t.sender = data['From']
+            new_t.reciever = data['To']
+            new_t.amt = int(data['Amt'])
+            self.LM.addTransactionToQueue(new_t)
         return 0
 
 
