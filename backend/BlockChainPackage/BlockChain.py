@@ -3,68 +3,48 @@ from .Utils import *
 from .Miner import Miner
 from .Block import Block
 
-DEBUG_ENABLE = False
+class DummyPayload(mongoengine.EmbeddedDocument):
+    time = mongoengine.DateTimeField(required=True,default=datetime.datetime.now)
 
 class BlockChain(object):
 
-	def __init__(self,difficulty=5):
-		self.difficulty = difficulty
-		self.chain = [self.createSeedBlock()]
+    def __init__(self, difficulty:int = 3):
+        self.difficulty = difficulty
+        self.__createSeedBlock()
 
-	def getLastBlock(self):
-		return self.chain[-1]
+    def __createSeedBlock(self):
+        if self.getLastBlock():
+            return
 
-	def createSeedBlock(self):
-		seedPayload = OrderedDict()
+        M = Miner('seed-miner')
 
-		M = Miner('seed-miner')
+        seedBlock = Block()
+        seedBlock.payload = DummyPayload()
+        seedBlock.prevhash = 'seed'
+        seedBlock.difficulty = self.difficulty
 
-		seedBlock = Block(seedPayload,self.difficulty)
-		seedBlock.setIndex(0)
-		seedBlock.setPrevHash('seed')
-		seedBlock = M.mine(seedBlock)
+        seedBlock = M.mine(seedBlock)
 
-		return seedBlock
+        seedBlock.save()
 
-	def addBlock(self,block):
+    def getLastBlock(self) -> Block:
+        lastBlock = Block.objects().order_by('-_id').first()
+        return lastBlock
 
-		self.initIncomingBlock(block)
-		self.chain.append(block)
+    def addBlock(self, block:Block) -> bool:
+        block.index = self.getLastBlock().index + 1
+        block.difficulty = self.difficulty
+        if block.isBlockValid():
+            block.save()
+            return True
+        return False
 
-		if self.isLastBlockValid():
-			return True
-
-		self.chain.pop()
-		return False
-
-	def isLastBlockValid(self):
-		return self.isBlockValid(len(self.chain)-1)
-
-	def isBlockValid(self,block_idx):
-		if block_idx == 0:
-			return self.chain[block_idx].isBlockValid()
-		if self.chain[block_idx].data['prevhash'] != self.chain[block_idx-1].calculateHash():
-			return False
-		if not self.chain[block_idx].isBlockValid() :
-			return False
-		return True
-
-	def isChainValid(self):
-		chainLen = len(self.chain)
-
-		ret = True
-
-		for i in range(chainLen):
-			if not self.isBlockValid(i):
-				debug_print('Issue at {}->{}'.format(i-1,i))
-				ret = False
-				pass
-		return ret
-
-	def initIncomingBlock(self,block):
-		lastBlock = self.getLastBlock()
-		block.setIndex(len(self.chain))
-		block.setPrevHash(lastBlock.getHash())
+    def isChainValid(self) -> bool:
+        query = Block.objects()
+        for block in query:
+            if not block.isBlockValid():
+                return False
+        return True
 
 if __name__ == '__main__':
-	pass
+    pass

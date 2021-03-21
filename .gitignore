@@ -4,3 +4,5 @@ __pycache__
 pip3-env
 vendor/downloads
 vendor/node*
+vendor/mongodb*
+runningdb

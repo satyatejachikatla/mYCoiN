@@ -2,53 +2,66 @@ import sys
 import random
 sys.path.append('../')
 
+import DataBase
+
 from LedgerPackage.LedgerManager import LedgerManager
 from LedgerPackage.Transaction import Transaction
+from BlockChainPackage.BlockChain import BlockChain
 from BlockChainPackage.Miner import Miner
+from BlockChainPackage.Block import Block
+from BlockChainPackage.Utils import calculateHash , print_json
 
 import pprint
 
 pp = pprint.PrettyPrinter(indent=4)
 
 
+print('Cleaning Db ...')
+DataBase.cleanDb()
+print('Init Db ...')
+DataBase.globalDbInit()
+
 def testBasicLedgering():
-	'''testBasicLedgering'''
-	LM = LedgerManager('LM')
+    '''testBasicLedgering'''
+    LM = LedgerManager('LM')
 
-	for i in range(95):
-		f = str(random.randint(0,100))
-		t = str(random.randint(0,100))
-		amt = random.randint(0,1000)
-		LM.addTransactionToQueue(Transaction(f,t,amt))
+    for i in range(95):
+        f = str(random.randint(0,100))
+        t = str(random.randint(0,100))
+        amt = random.randint(0,1000)
 
-	LM.generatePendingLedgers()
+        trnsct = Transaction()
+        trnsct.sender = f
+        trnsct.reciever = t
+        trnsct.amt = amt
 
-	M = Miner('Teja')
-	minable_block = LM.getLastestLedgerToMine()
-	assert(minable_block != None)
+        LM.addTransactionToQueue(trnsct)
 
-	mined_block = M.mine(minable_block)
+    LM.generatePendingLedgers()
 
-	assert(mined_block != None)
+    M = Miner('Teja')
+    minable_block = LM.getLastestLedgerToMine()
+    assert(minable_block != None)
 
-	M.setMinedBlock(mined_block)
+    mined_block = M.mine(minable_block)
 
-	assert(M.getMinedBlock() != None)
+    assert(mined_block != None)
 
-	assert(LM.authenticateLedger(M))
 
-	print('Validity:',LM.isLedgerValid())
-	pp.pprint(LM.pendingTransactions[-1].getData())
+    assert(LM.authenticateLedger(M,mined_block))
+
+    print('Validity:',LM.isLedgerValid())
+    print_json(LM.pendingTransactions[-1].to_json())
 
 
 tests_list = [
-	testBasicLedgering,
+    testBasicLedgering,
 ]
 
 if __name__ == '__main__':
-	for i,test in enumerate(tests_list):
-		print('----------Test({})----------'.format(i))
-		print('DESCRIPTION: {}'.format(test.__doc__))
-		test()
-		print('----------------------------')
-		
+    for i,test in enumerate(tests_list):
+        print('----------Test({})----------'.format(i))
+        print('DESCRIPTION: {}'.format(test.__doc__))
+        test()
+        print('----------------------------')
+

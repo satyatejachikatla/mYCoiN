@@ -10,7 +10,7 @@ from BlockChainPackage.Miner import Miner
 flask_app = Flask(__name__)
 
 
-class StateMachine():
+class Server():
     POOL_TIME = 1  # seconds
     UPDATE_TIME = 10
 
@@ -66,4 +66,4 @@ class StateMachine():
         return 0
 
 
-SM = StateMachine()
+SM = Server()

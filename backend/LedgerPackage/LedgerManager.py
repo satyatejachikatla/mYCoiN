@@ -2,70 +2,72 @@ from .__init__ import *
 from .Transaction import Transaction
 from BlockChainPackage.BlockChain import BlockChain
 from BlockChainPackage.Block import Block
+from BlockChainPackage.Miner import Miner 
 
 class LedgerManager(object):
-	def __init__(self,name):
-		self.name = name
-		self.mineReward = 16
-		self.difficulty = 3
-		self.transactionsBatchSize = 10
+    def __init__(self,name:str):
+        self.name = name
+        self.mineReward = 16
+        self.difficulty = 3
+        self.transactionsBatchSize = 10
 
-		self.pendingTransactions = []
-		self.pendingLedgers = []
-		self.BC = BlockChain(self.difficulty)
+        self.pendingTransactions = []
+        self.pendingLedgers = []
+        self.BC = BlockChain(self.difficulty)
 
-	def addTransactionToQueue(self,transaction):
-		self.pendingTransactions.append(transaction)
+    def addTransactionToQueue(self,transaction:Transaction):
+        self.pendingTransactions.append(transaction)
 
-	def getLatestTrasactionBatch(self):
-		if len(self.pendingTransactions) < self.transactionsBatchSize:
-			#print('Still need to fill up minimum number of transactions per block for batch {}'.format(self.pendingTransactions))
-			return []
-		return self.pendingTransactions[:self.transactionsBatchSize]
+    def getLatestTrasactionBatch(self) -> List[Transaction]:
+        if len(self.pendingTransactions) < self.transactionsBatchSize:
+            #print('Still need to fill up minimum number of transactions per block for batch {}'.format(self.pendingTransactions))
+            return []
+        return self.pendingTransactions[:self.transactionsBatchSize]
 
-	def clearLatestTrasactionBatch(self):
-		self.pendingTransactions = self.pendingTransactions[self.transactionsBatchSize:]
+    def clearLatestTrasactionBatch(self):
+        self.pendingTransactions = self.pendingTransactions[self.transactionsBatchSize:]
 
-	def generatePendingLedgers(self):
-		while True:
-			batch = self.getLatestTrasactionBatch()
-			if not batch:
-				break
+    def generatePendingLedgers(self):
+        while True:
+            batch = self.getLatestTrasactionBatch()
+            if not batch:
+                break
 
-			payload = OrderedDict()
-			payload['TransactionData'] = [ transaction.getData() for transaction in batch ]
+            new_ledger = Block()
+            new_ledger.payload = batch
+            new_ledger.prevhash = self.BC.getLastBlock().hash
+            new_ledger.difficulty = self.difficulty
 
-			new_ledger = Block(payload,self.BC.difficulty)
+            self.pendingLedgers.append(new_ledger)
+            self.clearLatestTrasactionBatch()
 
-			self.pendingLedgers.append(new_ledger)
+    def getLastestLedgerToMine(self) -> Block:
+        if not self.pendingLedgers:
+            return None
+        return self.pendingLedgers[0]
 
-			self.clearLatestTrasactionBatch()
+    def clearLastestLedgerToMine(self):
+        if self.pendingLedgers:
+            self.pendingLedgers.pop(0)
 
-	def getLastestLedgerToMine(self):
-		if not self.pendingLedgers:
-			return None
-		self.BC.initIncomingBlock(self.pendingLedgers[0])
-		return self.pendingLedgers[0]
+    def authenticateLedger(self,miner:Miner,new_ledger:Block):
 
-	def clearLastestLedgerToMine(self):
-		if self.pendingLedgers:
-			self.pendingLedgers.pop(0)
-		
-	def authenticateLedger(self,miner):
-		new_ledger = miner.getMinedBlock()
+        status = self.BC.addBlock(new_ledger)
 
-		status = self.BC.addBlock(new_ledger)
+        if status:
+            self.clearLastestLedgerToMine()
 
-		if status:
-			self.clearLastestLedgerToMine()
+            miner_reward = Transaction()
+            miner_reward.sender = self.name
+            miner_reward.reciever = miner.name
+            miner_reward.amt = self.mineReward
 
-		self.addTransactionToQueue(Transaction(self.name,miner.name,self.mineReward))
+            self.addTransactionToQueue(miner_reward)
 
-		return status
-		
+        return status
 
-	def isLedgerValid(self):
-		return self.BC.isChainValid()
+    def isLedgerValid(self):
+        return self.BC.isChainValid()
 
 if __name__ == '__main__':
-	pass
+    pass

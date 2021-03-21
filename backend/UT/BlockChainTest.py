@@ -2,71 +2,88 @@ import sys
 sys.path.append('../')
 
 from BlockChainPackage.__init__ import *
+import DataBase
 
 from BlockChainPackage.BlockChain import BlockChain
 from BlockChainPackage.Miner import Miner
 from BlockChainPackage.Block import Block
-from BlockChainPackage.Utils import calculateHash
+from BlockChainPackage.Utils import calculateHash , print_json
 
 import pprint
 
 pp = pprint.PrettyPrinter(indent=4)
 
+print('Cleaning Db ...')
+DataBase.cleanDb()
+print('Init Db ...')
+DataBase.globalDbInit()
+
+class Payload(mongoengine.EmbeddedDocument):
+    a = mongoengine.IntField()
+    b = mongoengine.IntField()
+
 def genDummyChain():
-	BC = BlockChain(3)
-	M = Miner('miner-boiee')
+    difficulty = 3
+    BC = BlockChain(difficulty)
+    M = Miner('miner-boiee')
 
-	for i in range(1,6):
-		payloadData= OrderedDict({i:i,i+1:i+1})
+    for i in range(1,3):
+        print('Generating Payload ',i)
+        payload=Payload()
+        payload.a=i
+        payload.b=i
 
-		B = Block(payloadData,BC.difficulty)
+        B = Block()
+        B.payload = payload
+        B.prevhash = BC.getLastBlock().hash
+        B.difficulty = difficulty
 
-		B.setIndex(i)
-		B.setPrevHash(BC.getLastBlock().getHash())
+        B = M.mine(B)
+        assert(BC.addBlock(B))
 
-		B = M.mine(B)
-		assert(B != None)
-		assert(BC.addBlock(B))
+    return BC	
 
-	return BC	
+BC = genDummyChain()
 
 def testBasicBlockChain():
-	'''testBasicBlockChain'''
-	BC = genDummyChain()
+    '''testBasicBlockChain'''
 
-	pp.pprint([(block.data,block.hash) for block in BC.chain])
-	print('Validity:',BC.isChainValid())
+    print_json(Block.objects().to_json())
+    assert(BC.isChainValid())
+    print('Validity:',BC.isChainValid())
 
 def testConsistantHashing():
-	'''testConsistantHashing'''
-	payloadData= OrderedDict()
+    '''testConsistantHashing'''
+    payloadData= Payload()
 
-	payloadData['abc'] = 12
-	payloadData['efg'] = 23
+    payloadData.a = 12
+    payloadData.b = 23
 
-	pp.pprint([payloadData,
-		calculateHash(json.dumps(payloadData)),
-		calculateHash(json.dumps(payloadData)),
-		calculateHash(json.dumps(payloadData)) == calculateHash(json.dumps(payloadData))])
+    pp.pprint([payloadData,
+               calculateHash(payloadData.to_json()),
+               calculateHash(payloadData.to_json()),
+               calculateHash(payloadData.to_json()) == calculateHash(payloadData.to_json())])
 
 def testChainBreakage():
-	'''testChainBreakage'''
-	BC = genDummyChain()
+    '''testChainBreakage'''
+    b= BC.getLastBlock()
+    b.prevhash = 'junk'
+    b.save_force()
 
-	BC.chain[2].data['payload'] = OrderedDict()
-	print('Validity:',BC.isChainValid())
+    print_json(Block.objects().to_json())
+    print('Validity:',BC.isChainValid())
 
 
 tests_list = [
-	testBasicBlockChain,
-	testConsistantHashing,
-	testChainBreakage
+    testBasicBlockChain,
+    testConsistantHashing,
+    testChainBreakage
 ]
 
 if __name__ == '__main__':
-	for i,test in enumerate(tests_list):
-		print('----------Test({})----------'.format(i))
-		print('DESCRIPTION: {}'.format(test.__doc__))
-		test()
-		print('----------------------------')
-		
+    for i,test in enumerate(tests_list):
+        print('----------Test({})----------'.format(i))
+        print('DESCRIPTION: {}'.format(test.__doc__))
+        test()
+        print('----------------------------')
+

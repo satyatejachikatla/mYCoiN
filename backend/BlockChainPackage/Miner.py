@@ -3,52 +3,44 @@ from .Utils import *
 from .Block import Block
 
 class Miner(object):
-	def __init__(self,name):
-		self.name = name
-		self.minedBlock = None
+    def __init__(self,name:str):
+        self.name = name
 
-	def setMinedBlock(self,block):
-		self.minedBlock = block
+    def mine(self,block:Block)->Block:
+        ret = None
+        skip = 0
+        skip_amount = 100
+        while ret == None:
+            r = range(0+skip,skip_amount+skip)
+            ret = self.mine_range(block,r)
+            skip += skip_amount
 
-	def getMinedBlock(self):
-		return self.minedBlock
+        return ret
 
-	def mine(self,block):
-		ret = None
-		skip = 0
-		skip_amount = 100
-		while ret == None:
-			r = range(0+skip,skip_amount+skip)
-			ret = self.mine_range(block,r)
-			skip += skip_amount
+    def mine_range(self,block:Block,r:range) -> Block:
+        return self.mine_set(block,set(r))
 
-		return ret
+    def mine_set(self,block:Block,nonce_set:set) -> Block:
+        '''
+        if hash stats with difficulty 
+                then accept hash
+        else
+                nonce + 1 and repeat
+        Eg:
+                difficulty = 3
+                hash = 123ac... then accept
+        '''
 
-	def mine_range(self,block,r):
-		return self.mine_set(block,list(r))
+        for nonce in nonce_set:
+            block.nonce = nonce
+            if block.isBlockValid():
+                debug_print(f'Found : Hash : {block.hash}\nNonce: {block.nonce}')
+                return block
 
-	def mine_set(self,block,nonce_set):
-		'''
-		if hash stats with difficulty 
-			then accept hash
-		else
-			nonce + 1 and repeat
-		Eg:
-			difficulty = 3
-			hash = 123ac... then accept
-		'''
-		block.calculateAndSetHash()
+            debug_print(f'Mining : Hash : {block.hash}\nNonce: {block.nonce}')
 
-		for nonce in nonce_set:
-			block.data['nonce'] = nonce
-			if block.isBlockValid():
-				debug_print('Found : Hash : {hash}\nNonce: {nonce}'.format(hash=block.hash,nonce=block.data['nonce']))
-				return block
-
-			debug_print('Mining : Curr Hash : {hash}\nNonce: {nonce}'.format(hash=block.hash,nonce=block.data['nonce'] ))
-
-		debug_print('Not Found')
-		return None
+        debug_print('Not Found')
+        return None
 
 if __name__ == '__main__':
-	pass
+    pass
