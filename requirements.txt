@@ -2,3 +2,7 @@ flask
 python-dotenv
 pymongo
 mongoengine
+graphene
+graphene-mongo
+flask_graphql
+mongomock

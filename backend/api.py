@@ -1,5 +1,6 @@
 import json
 from flask import Flask, request, jsonify
+from flask_graphql import GraphQLView
 import threading
 
 
@@ -7,15 +8,23 @@ from LedgerPackage.LedgerManager import LedgerManager
 from LedgerPackage.Transaction import Transaction
 from BlockChainPackage.Miner import Miner
 from BlockChainPackage.Block import Block
+from BlockChainPackage.schema import schema
+
 
 import DataBase
+import os
 
-# print('Cleaning Db ...')
-# DataBase.cleanDb()
-print('Init Db ...')
-DataBase.globalDbInit()
 
 flask_app = Flask(__name__)
+
+if not flask_app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    print('Cleaning Db ...')
+    DataBase.cleanDb()
+    print('Init Db ...')
+    DataBase.globalDbInit()
+
+from BlockChainPackage.schema import schema
+
 
 def mongo_to_obj(j):
     return json.dumps(j.to_json())
@@ -53,6 +62,8 @@ class Server():
                 'pendingLedgers': [mongo_to_obj(b) for b in self.LM.pendingLedgers]
             })
 
+        self.app.add_url_rule("/graphql", view_func=GraphQLView.as_view("graphql", schema=schema, graphiql=True))
+
     def update(self):
         self.LM.generatePendingLedgers()
         M = Miner('Teja')
@@ -74,6 +85,7 @@ class Server():
             workTime = self.POOL_TIME
         thread = threading.Timer(workTime, work, args=args)
         thread.start()
+        return thread
 
     def addData(self, data):
         with self.LM_lock:

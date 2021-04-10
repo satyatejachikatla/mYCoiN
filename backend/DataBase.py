@@ -1,5 +1,5 @@
 import mongoengine
-from mongoengine import connect
+from mongoengine import connect,disconnect
 
 dbConfig = {
     'alias': 'core',
