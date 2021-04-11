@@ -13,9 +13,7 @@
     "web-vitals": "^1.1.1"
   },
   "scripts": {
-    "start-frontend": "cd $TOPDIR/frontend/app && react-scripts start",
-    "start-backend": "cd $TOPDIR/backend/ && flask run",
-    "start-db": "mongod --dbpath $MONGDB_DBPATH",
+    "start-frontend": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
@@ -38,5 +36,5 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://127.0.0.1:5000/"
+  "proxy": "http://mycoin-backend:8000/"
 }

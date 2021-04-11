@@ -8,23 +8,16 @@ from LedgerPackage.LedgerManager import LedgerManager
 from LedgerPackage.Transaction import Transaction
 from BlockChainPackage.Miner import Miner
 from BlockChainPackage.Block import Block
-from BlockChainPackage.schema import schema
-
-
 import DataBase
 import os
 
-
+print('Entering Flask..........')
 flask_app = Flask(__name__)
 
-if not flask_app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-    print('Cleaning Db ...')
-    DataBase.cleanDb()
-    print('Init Db ...')
-    DataBase.globalDbInit()
+print('Init Db ...')
+DataBase.globalDbInit()
 
 from BlockChainPackage.schema import schema
-
 
 def mongo_to_obj(j):
     return json.dumps(j.to_json())

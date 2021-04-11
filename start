@@ -1,5 +1,0 @@
-#!/bin/bash
-
-. ./envrc.sh
-cd $TOPDIR/frontend/app
-npm run start-$1
